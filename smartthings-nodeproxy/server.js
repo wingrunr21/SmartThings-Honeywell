@@ -79,8 +79,12 @@ fs.readdir('./plugins', function(err, files) {
     .filter(function(file) { return file.substr(-3) === '.js'; })
     .forEach(function(file) {
       var plugin = file.split(".")[0];
-      app.use('/plugins/'+plugin, require('./plugins/'+plugin)(function(data){notify(plugin,data);}));
-      console.log('Loaded plugin: '+plugin);
+      if (config.get(plugin)) {
+        app.use('/plugins/'+plugin, require('./plugins/'+plugin)(function(data){notify(plugin,data);}));
+        console.log('Loaded plugin: '+plugin);
+      } else {
+        console.log('Skipped plugin '+plugin+' as it is not configured');
+      }
     });
 });
 

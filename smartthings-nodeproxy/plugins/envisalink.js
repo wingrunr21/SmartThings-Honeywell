@@ -23,8 +23,7 @@
 var express = require('express');
 var net = require('net');
 var app = express();
-var nconf = require('nconf');
-nconf.file({ file: './config.json' });
+var config = require('../configuration');
 var notify;
 
 /**
@@ -35,33 +34,33 @@ app.get('/', function (req, res) {
 });
 
 app.get('/armAway', function (req, res) {
-  if (nconf.get('envisalink:securityCode')) {
-    evl.command(nconf.get('envisalink:securityCode')+'2');
+  if (config.get('envisalink:securityCode')) {
+    evl.command(config.get('envisalink:securityCode')+'2');
   }
   res.end();
 });
 
 app.get('/armStay', function (req, res) {
-  if (nconf.get('envisalink:securityCode')) {
-    evl.command(nconf.get('envisalink:securityCode')+'3');
+  if (config.get('envisalink:securityCode')) {
+    evl.command(config.get('envisalink:securityCode')+'3');
   }
   res.end();
 });
 
 app.get('/disarm', function (req, res) {
-  if (nconf.get('envisalink:securityCode')) {
-    evl.command(nconf.get('envisalink:securityCode')+'1');
+  if (config.get('envisalink:securityCode')) {
+    evl.command(config.get('envisalink:securityCode')+'1');
   }
   res.end();
 });
 
 app.get('/config/:host', function (req, res) {
   var parts = req.params.host.split(":");
-  nconf.set('envisalink:address', parts[0]);
-  nconf.set('envisalink:port', parts[1]);
-  nconf.set('envisalink:password', parts[2]);
-  nconf.set('envisalink:securityCode', parts[3]);
-  nconf.save(function (err) {
+  config.set('envisalink:address', parts[0]);
+  config.set('envisalink:port', parts[1]);
+  config.set('envisalink:password', parts[2]);
+  config.set('envisalink:securityCode', parts[3]);
+  config.save(function (err) {
     if (err) {
       console.log('Configuration error: '+err.message);
       res.status(500).json({ error: 'Configuration error: '+err.message });
@@ -112,14 +111,14 @@ function Envisalink () {
    * init
    */
   this.init = function() {
-    if (!nconf.get('envisalink:address') || !nconf.get('envisalink:port') || !nconf.get('envisalink:password')) {
+    if (!config.get('envisalink:address') || !config.get('envisalink:port') || !config.get('envisalink:password')) {
         console.log('** NOTICE ** Envisalink settings not set in config file!');
         return;
     }
 
     if (device && device.writable) { return; }
     if (device) { device.destroy(); }
-    
+
     device = new net.Socket();
     device.on('error', function(err) {
       console.log("Envisalink connection error: "+err.description);
@@ -139,8 +138,8 @@ function Envisalink () {
       });
     });
 
-    device.connect(nconf.get('envisalink:port'), nconf.get('envisalink:address'), function() {
-      console.log('Connected to Envisalink at %s:%s', nconf.get('envisalink:address'), nconf.get('envisalink:port'));
+    device.connect(config.get('envisalink:port'), config.get('envisalink:address'), function() {
+      console.log('Connected to Envisalink at %s:%s', config.get('envisalink:address'), config.get('envisalink:port'));
     });
   };
 
@@ -200,9 +199,9 @@ function Envisalink () {
   var outputs = [];
 
   this.discover = function() {
-    if (!nconf.get('envisalink:installerCode') || nconf.get('envisalink:installerCode').length == 0) {
-      if (nconf.get('envisalink:panelConfig')) {
-        notify(JSON.stringify(nconf.get('envisalink:panelConfig')));
+    if (!config.get('envisalink:installerCode') || config.get('envisalink:installerCode').length == 0) {
+      if (config.get('envisalink:panelConfig')) {
+        notify(JSON.stringify(config.get('envisalink:panelConfig')));
         console.log('Completed panel discovery');
       } else {
         console.log('** NOTICE ** Panel configuration not set in config file!');
@@ -215,7 +214,7 @@ function Envisalink () {
 
     //console.log('Begin panel discovery');
     //console.log('Request programming mode');
-    requestHandler(nconf.get('envisalink:installerCode')+'800', 'Installer', function(data) {
+    requestHandler(config.get('envisalink:installerCode')+'800', 'Installer', function(data) {
       //console.log('Request field data');
       requestHandler('*', 'Field', function(data) {
         //console.log('Request zone data');
@@ -357,7 +356,7 @@ function Envisalink () {
    */
   function login() {
     //console.log('Execute login');
-    write(nconf.get('envisalink:password'));
+    write(config.get('envisalink:password'));
   }
 
   function keypad_update(data) {
@@ -537,7 +536,7 @@ function Envisalink () {
       'description' : 'Send During Session Login Only, successful login',
       'handler' : login_success },
     'FAILED' : {
-      'name' : 'Login Failure', 
+      'name' : 'Login Failure',
       'description' : 'Sent During Session Login Only, password not accepted',
       'handler' : login_failure },
     'Timed Out!' : {
@@ -554,8 +553,8 @@ function Envisalink () {
       'handler' : zone_state_change,
       'type' : 'zone'},
     '%02' : {
-      'name' : 'Partition State Change', 
-      'description' : 'A partition change-of-state has occured', 
+      'name' : 'Partition State Change',
+      'description' : 'A partition change-of-state has occured',
       'handler' : partition_state_change,
       'type' : 'partition' },
     '%03' : {

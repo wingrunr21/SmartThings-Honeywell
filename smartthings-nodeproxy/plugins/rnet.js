@@ -28,8 +28,7 @@
 var express = require('express');
 var serialport = require("serialport");
 var app = express();
-var nconf = require('nconf');
-nconf.file({ file: './config.json' });
+var config = require('../configuration');
 var notify;
 
 /**
@@ -139,14 +138,14 @@ function Rnet() {
   this.init = function() {
     getSerialPorts();
 
-    if (!nconf.get('rnet:serialPort')) {
+    if (!config.get('rnet:serialPort')) {
         console.log('** NOTICE ** RNET serial port not set in config file!');
         return;
     }
 
     if (device && device.isOpen()) { return };
 
-    device = new serialport.SerialPort(nconf.get('rnet:serialPort'), { baudrate: 19200 }, false);
+    device = new serialport.SerialPort(config.get('rnet:serialPort'), { baudrate: 19200 }, false);
 
     device.on('data', function(data) {
       for(var i=0; i<data.length; i++) {
@@ -165,7 +164,7 @@ function Rnet() {
         device = null;
         return;
       } else {
-        console.log('Connected to RNET: '+nconf.get('rnet:serialPort'));
+        console.log('Connected to RNET: '+config.get('rnet:serialPort'));
       }
     });
   };
@@ -230,8 +229,8 @@ function Rnet() {
    * Discovery Handlers
    */
   this.discover = function() {
-    if (nconf.get('rnet:controllerConfig')) {
-      notify_handler(nconf.get('rnet:controllerConfig'));
+    if (config.get('rnet:controllerConfig')) {
+      notify_handler(config.get('rnet:controllerConfig'));
       console.log('Completed controller discovery');
     } else {
       console.log('** NOTICE ** Controller configuration not set in config file!');
@@ -249,7 +248,7 @@ function Rnet() {
       zone: data[1],
       state: data[2],
       source: data[3],
-      sourceName: nconf.get('rnet:sources')[data[3]],
+      sourceName: config.get('rnet:sources')[data[3]],
       volume: data[4],
       bass: data[5],
       treble: data[6],
@@ -280,14 +279,14 @@ function Rnet() {
   };
 
   function zone_source(data) {
-    notify_handler({type: 'zone', controller: data[0], zone: data[1], source: data[2], sourceName: nconf.get('rnet:sources')[data[2]]});
+    notify_handler({type: 'zone', controller: data[0], zone: data[1], source: data[2], sourceName: config.get('rnet:sources')[data[2]]});
   }
   this.getZoneSource = function(id) {
     write([0xF0, controllerId, 0x00, 0x7F, 0x00, 0x00, 0x70, 0x01, 0x04, 0x02, 0x00, id, 0x02, 0x00, 0x00]);
   };
   this.setZoneSource = function(id, source) {
     write([0xF0, controllerId, 0x00, 0x7F, 0x00, id, 0x70, 0x05, 0x02, 0x00, 0x00, 0x00, 0xF1, 0x3E, 0x00, 0x00, 0x00, source, 0x00, 0x01]);
-    zone_source([controllerId, id, source, nconf.get('rnet:sources')[source]]);
+    zone_source([controllerId, id, source, config.get('rnet:sources')[source]]);
   };
 
   function zone_volume(data) {
@@ -438,7 +437,7 @@ function Rnet() {
       'pattern' : '^f0000070(.{2})007f0000040200(.{2})06000001000100(.{2})$',
       'handler' : zone_state },
     '040200' : {
-      'name' : 'Zone Source', 
+      'name' : 'Zone Source',
       'description' : 'Zone source selected (0-5)',
       'pattern' : '^f0000070(.{2})007f0000040200(.{2})02000001000100(.{2})$',
       'handler' : zone_source },
